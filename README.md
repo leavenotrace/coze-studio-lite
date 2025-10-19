@@ -52,3 +52,45 @@ The backend typically listens on port `8099` (see `backend/config.yaml` or appli
 ## Notes
 
 - I added a minimal `index.html` and `src/main.tsx` in `frontend/apps/studio-lite` to provide an entry for development. If you prefer a monorepo setup where the root `frontend/` serves the app, adjust the root's Vite configuration or add a root `index.html`.
+
+## Dev helper (Makefile)
+
+This repository includes a `Makefile` convenience target to start both the backend and the `studio-lite` frontend in the background for local development.
+
+- Start both services in background (writes logs and pid files to repo root):
+
+```bash
+make dev
+```
+
+This will:
+- Start the backend with the configured `API_PORT` and `MYSQL_DSN`. Backend logs are written to `backend.log` and PID to `backend.pid`.
+- Start the Vite dev server for `studio-lite` (runs from `frontend/apps/studio-lite`). Vite logs are written to `vite.log` and PID to `vite.pid`.
+
+- Stop the background dev processes:
+
+```bash
+make dev-stop
+```
+
+Notes:
+- Vite will try port 5173 by default. If 5173 is in use it will try subsequent ports (5174, 5175, ...). The Makefile does not force `--port 5173` to avoid failing when the port is occupied. If you prefer a fixed port, start Vite manually with `--port 5173`.
+- If you prefer to run services in the foreground (for interactive logs), run:
+
+```bash
+# backend (foreground)
+cd backend && API_PORT=8099 MYSQL_DSN="<dsn>" go run ./
+
+# frontend (foreground)
+cd frontend/apps/studio-lite && npx vite
+```
+
+PID/log file locations (repo root):
+- backend.log — backend stdout/stderr
+- backend.pid — backend PID
+- vite.log — vite stdout/stderr
+- vite.pid — vite PID
+
+If you see unexpected 404s or requests not reaching the backend, check:
+- which process is listening on 5173: `ss -ltnp | grep 5173`
+- whether the running Vite instance is started from `frontend/apps/studio-lite` (it should be) or from `frontend/` root (which can cause routing/proxy issues).
