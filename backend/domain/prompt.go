@@ -1,0 +1,36 @@
+package domain
+
+import (
+	"context"
+	"time"
+
+	"github.com/oklog/ulid/v2"
+)
+
+type Prompt struct {
+	ID        string    `json:"id" gorm:"column:id;primaryKey"`
+	Name      string    `json:"name" gorm:"column:name"`
+	Body      string    `json:"body" gorm:"column:body"`
+	Tags      []byte    `json:"tags" gorm:"column:tags"` // 存 JSON
+	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+}
+
+func NewPrompt(name, body string, tags []string) Prompt {
+	// 这里将 tags 序列化为 JSON 存入 []byte，简化演示
+	j := []byte("[]")
+	if len(tags) > 0 {
+		j = []byte(`["` + tags[0] + `"]`) // 最小演示：仅取第一个标签
+	}
+	return Prompt{
+		ID:        ulid.Make().String(),
+		Name:      name,
+		Body:      body,
+		Tags:      j,
+		CreatedAt: time.Now(),
+	}
+}
+
+type PromptRepo interface {
+	List(ctx context.Context) ([]Prompt, error)
+	Save(ctx context.Context, p Prompt) error
+}
