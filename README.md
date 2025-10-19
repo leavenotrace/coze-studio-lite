@@ -1,0 +1,54 @@
+# coze-studio-lite
+
+Minimal instructions for development: how to run the backend and the frontend (studio-lite app).
+
+## Repository layout
+
+- `backend/` - Go backend server
+- `frontend/` - frontend workspace containing apps
+	- `frontend/apps/studio-lite/` - Vite + React application (this project uses this app)
+
+## Frontend (studio-lite)
+
+The `studio-lite` app is located at `frontend/apps/studio-lite` and has its own `vite.config.ts`.
+
+To start the dev server and serve the `studio-lite` app:
+
+1. From the repository root you can run Vite with the app as the root:
+
+```bash
+# start Vite with the app root (recommended to ensure the correct vite.config is used)
+npx vite --root frontend/apps/studio-lite --config frontend/apps/studio-lite/vite.config.ts
+```
+
+Or use the frontend package scripts and pass the `--root` flag:
+
+```bash
+npm --prefix frontend run dev -- --root apps/studio-lite --config apps/studio-lite/vite.config.ts
+```
+
+By default `vite.config.ts` in the app requests port `5173`. If port `5173` is already in use, Vite will pick another port (for example `5174`). If you need to force a specific port, pass `--port 5173`.
+
+If you see a `404` when visiting `http://localhost:5173/`, it usually means the server running on that port is not serving the `studio-lite` app (often because another Vite process is running from `frontend/` root). To fix this, either stop the other process or start Vite with the correct `--root` as shown above.
+
+## Backend
+
+The backend is a Go application in `backend/`. Typical steps to run locally:
+
+```bash
+# build and run (from repository root)
+cd backend
+go run ./
+```
+
+The backend typically listens on port `8099` (see `backend/config.yaml` or application logs).
+
+## Common troubleshooting
+
+- Port conflicts: list listening processes with `ss -ltnp | grep 5173` and kill the PID if you want to free the port.
+- Vite serving wrong root: ensure you start Vite with `--root frontend/apps/studio-lite` so it serves the app's `index.html`.
+- If frontend API requests should reach the Go backend in dev, Vite config proxies `/api` to `http://127.0.0.1:8099` by default (see `frontend/apps/studio-lite/vite.config.ts`). Ensure the backend is running.
+
+## Notes
+
+- I added a minimal `index.html` and `src/main.tsx` in `frontend/apps/studio-lite` to provide an entry for development. If you prefer a monorepo setup where the root `frontend/` serves the app, adjust the root's Vite configuration or add a root `index.html`.
