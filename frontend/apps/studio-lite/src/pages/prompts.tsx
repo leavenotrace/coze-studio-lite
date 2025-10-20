@@ -70,21 +70,14 @@ export default function Prompts(){
         </div>
 
         <div className="flex items-center gap-3">
-          <select value={authMode} onChange={e=>setAuthMode(e.target.value as any)} className="select select-bordered select-sm">
-            <option value="login">Login</option>
-            <option value="register">Register</option>
-          </select>
-          <input placeholder="email" value={email} onChange={e=>setEmail(e.target.value)} className="input input-bordered input-sm w-56" />
-          <input placeholder="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} className="input input-bordered input-sm w-40" />
-          <button className={`btn btn-sm ${authMode==='login' ? 'btn-outline' : 'btn-primary'}`} onClick={()=> authMode==='login' ? login.mutate({email,password}) : register.mutate({email,password})}>
-            {authMode==='login' ? (login.isPending?'Logging in...':'Login') : (register.isPending?'Registering...':'Register')}
-          </button>
           {meData ? (
             <div className="flex items-center gap-3 ml-3">
               <div className="text-sm">{meData.email}</div>
               <button className="btn btn-ghost btn-sm" onClick={()=>{ setToken(null); qc.invalidateQueries(); alert('logged out') }}>Logout</button>
             </div>
-          ) : null}
+          ) : (
+            <div className="text-sm text-gray-500">请先登录以使用写操作。可在顶部导航点击 Login / Register。</div>
+          )}
         </div>
       </div>
 

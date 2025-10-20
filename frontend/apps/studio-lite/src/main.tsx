@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import './index.css'
+import '/@fs/home/project/coze-studio-lite/frontend/node_modules/daisyui/daisyui.css'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Prompts from './pages/prompts'
