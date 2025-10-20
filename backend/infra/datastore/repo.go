@@ -40,7 +40,7 @@ func (r *Repo) Get(ctx context.Context, id string) (domain.Prompt, error) {
 
 func (r *Repo) Update(ctx context.Context, p domain.Prompt) error {
 	return r.db.WithContext(ctx).Table("prompts").Where("id=?", p.ID).Updates(map[string]any{
-		"name": p.Name, "body": p.Body, "tags": p.Tags,
+		"name": p.Name, "body": p.Body, "tags": p.Tags, "owner_id": p.OwnerID,
 	}).Error
 }
 
@@ -56,6 +56,14 @@ func (r *Repo) CreateUser(ctx context.Context, u domain.User) error {
 func (r *Repo) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
 	var u domain.User
 	if err := r.db.WithContext(ctx).Table("users").Where("email=?", email).First(&u).Error; err != nil {
+		return domain.User{}, err
+	}
+	return u, nil
+}
+
+func (r *Repo) GetUserByID(ctx context.Context, id string) (domain.User, error) {
+	var u domain.User
+	if err := r.db.WithContext(ctx).Table("users").Where("id=?", id).First(&u).Error; err != nil {
 		return domain.User{}, err
 	}
 	return u, nil

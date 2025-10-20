@@ -4,12 +4,13 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 
 	"github.com/coze-dev/coze-studio/backend/application"
-    "github.com/coze-dev/coze-studio/backend/pkg/auth"
+	"github.com/coze-dev/coze-studio/backend/pkg/auth"
 )
 
 type H = map[string]any
@@ -28,6 +29,30 @@ func Run() error {
 		ctx.String(http.StatusOK, "ok")
 	})
 
+	// Helper middleware: require auth and inject user id into context
+	authMiddleware := func(next app.HandlerFunc) app.HandlerFunc {
+		return func(c context.Context, ctx *app.RequestContext) {
+			ah := string(ctx.GetHeader("Authorization"))
+			if ah == "" {
+				ctx.JSON(http.StatusUnauthorized, H{"code": 401, "msg": "missing authorization"})
+				return
+			}
+			if !strings.HasPrefix(ah, "Bearer ") {
+				ctx.JSON(http.StatusUnauthorized, H{"code": 401, "msg": "invalid authorization"})
+				return
+			}
+			tok := strings.TrimPrefix(ah, "Bearer ")
+			uid, err := auth.ParseToken(tok)
+			if err != nil || uid == "" {
+				ctx.JSON(http.StatusUnauthorized, H{"code": 401, "msg": "invalid token"})
+				return
+			}
+			// inject user id into context
+			nc := context.WithValue(c, "user_id", uid)
+			next(nc, ctx)
+		}
+	}
+
 	// Prompt 最小化接口：列表、创建
 	r := h.Group("/api")
 	r.GET("/prompts", func(c context.Context, ctx *app.RequestContext) {
@@ -38,7 +63,9 @@ func Run() error {
 		}
 		ctx.JSON(http.StatusOK, H{"code": 0, "data": data})
 	})
-	r.POST("/prompts", func(c context.Context, ctx *app.RequestContext) {
+
+	// create requires auth
+	r.POST("/prompts", authMiddleware(func(c context.Context, ctx *app.RequestContext) {
 		var in struct {
 			Name string   `json:"name"`
 			Body string   `json:"body"`
@@ -48,13 +75,15 @@ func Run() error {
 			ctx.JSON(http.StatusBadRequest, H{"code": 400, "msg": "bad request"})
 			return
 		}
-		p, err := appsvc.Prompts.Create(c, in.Name, in.Body, in.Tags)
+		uidv := c.Value("user_id")
+		uid, _ := uidv.(string)
+		p, err := appsvc.Prompts.Create(c, in.Name, in.Body, in.Tags, uid)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
 			return
 		}
 		ctx.JSON(http.StatusOK, H{"code": 0, "data": p})
-	})
+	}))
 
 	// Auth: register
 	r.POST("/register", func(c context.Context, ctx *app.RequestContext) {
@@ -62,13 +91,13 @@ func Run() error {
 			Email string `json:"email"`
 			Password string `json:"password"`
 		}
- 		if err := ctx.Bind(&in); err != nil {
- 			ctx.JSON(http.StatusBadRequest, H{"code":400, "msg":"bad request"}); return
- 		}
- 		u, err := appsvc.Users.Register(c, in.Email, in.Password)
- 		if err != nil { ctx.JSON(http.StatusInternalServerError, H{"code":500, "msg":err.Error()}); return }
- 		ctx.JSON(http.StatusOK, H{"code":0, "data":u})
- 	})
+		if err := ctx.Bind(&in); err != nil {
+			ctx.JSON(http.StatusBadRequest, H{"code":400, "msg":"bad request"}); return
+		}
+		u, err := appsvc.Users.Register(c, in.Email, in.Password)
+		if err != nil { ctx.JSON(http.StatusInternalServerError, H{"code":500, "msg":err.Error()}); return }
+		ctx.JSON(http.StatusOK, H{"code":0, "data":u})
+	})
 
 	// Auth: login
 	r.POST("/login", func(c context.Context, ctx *app.RequestContext) {
@@ -85,35 +114,45 @@ func Run() error {
 		ctx.JSON(http.StatusOK, H{"code":0, "data": map[string]any{"user": u, "token": tok}})
 	})
 
-		// 新增：PUT /api/prompts/:id
-		r.PUT("/prompts/:id", func(c context.Context, ctx *app.RequestContext) {
-			id := string(ctx.Param("id"))
-			var in struct {
-				Name string   `json:"name"`
-				Body string   `json:"body"`
-				Tags []string `json:"tags"`
-			}
-			if err := ctx.Bind(&in); err != nil {
-				ctx.JSON(http.StatusBadRequest, H{"code": 400, "msg": "bad request"})
-				return
-			}
-			p, err := appsvc.Prompts.Update(c, id, in.Name, in.Body, in.Tags)
-			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
-				return
-			}
-			ctx.JSON(http.StatusOK, H{"code": 0, "data": p})
-		})
+	// current user
+	r.GET("/me", authMiddleware(func(c context.Context, ctx *app.RequestContext) {
+		uidv := c.Value("user_id")
+		uid, _ := uidv.(string)
+		if uid == "" { ctx.JSON(http.StatusUnauthorized, H{"code":401, "msg":"unauthenticated"}); return }
+		u, err := appsvc.Users.GetByID(c, uid)
+		if err != nil { ctx.JSON(http.StatusInternalServerError, H{"code":500, "msg":err.Error()}); return }
+		ctx.JSON(http.StatusOK, H{"code":0, "data":u})
+	}))
 
-		// 新增：DELETE /api/prompts/:id
-		r.DELETE("/prompts/:id", func(c context.Context, ctx *app.RequestContext) {
-			id := string(ctx.Param("id"))
-			if err := appsvc.Prompts.Delete(c, id); err != nil {
-				ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
-				return
-			}
-			ctx.JSON(http.StatusOK, H{"code": 0, "data": true})
-		})
+	// 更新 requires auth
+	r.PUT("/prompts/:id", authMiddleware(func(c context.Context, ctx *app.RequestContext) {
+		id := string(ctx.Param("id"))
+		var in struct {
+			Name string   `json:"name"`
+			Body string   `json:"body"`
+			Tags []string `json:"tags"`
+		}
+		if err := ctx.Bind(&in); err != nil {
+			ctx.JSON(http.StatusBadRequest, H{"code": 400, "msg": "bad request"})
+			return
+		}
+		p, err := appsvc.Prompts.Update(c, id, in.Name, in.Body, in.Tags)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
+			return
+		}
+		ctx.JSON(http.StatusOK, H{"code": 0, "data": p})
+	}))
+
+	// 删除 requires auth
+	r.DELETE("/prompts/:id", authMiddleware(func(c context.Context, ctx *app.RequestContext) {
+		id := string(ctx.Param("id"))
+		if err := appsvc.Prompts.Delete(c, id); err != nil {
+			ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
+			return
+		}
+		ctx.JSON(http.StatusOK, H{"code": 0, "data": true})
+	}))
 
 	return h.Run()
 }

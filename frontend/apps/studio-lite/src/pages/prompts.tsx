@@ -11,6 +11,14 @@ export default function Prompts(){
     queryFn: async ()=> (await http.get('/api/prompts')).data.data as Prompt[]
   })
 
+  // fetch current user
+  const { data: meData } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => (await http.get('/api/me')).data.data as { id:string; email:string },
+    retry: false,
+    enabled: true,
+  })
+
   // Auth
   const [authMode, setAuthMode] = useState<'login'|'register'>('login')
   const [email, setEmail] = useState('')
@@ -54,85 +62,97 @@ export default function Prompts(){
   const list = useMemo(()=> data ?? [], [data])
 
   return (
-    <div style={{maxWidth: 880, margin: '40px auto', fontFamily:'system-ui'}}>
-      <h2 style={{marginBottom:8}}>Prompts</h2>
+  <div className="max-w-5xl mx-auto p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-2xl font-semibold">Prompts</h2>
+          <div className="text-sm text-gray-500">Create and manage prompt templates</div>
+        </div>
 
-      {/* Auth */}
-      <div style={{display:'flex', gap:8, margin:'12px 0', alignItems:'center'}}>
-        <select value={authMode} onChange={e=>setAuthMode(e.target.value as any)}>
-          <option value="login">Login</option>
-          <option value="register">Register</option>
-        </select>
-        <input placeholder="email" value={email} onChange={e=>setEmail(e.target.value)} />
-        <input placeholder="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
-        <button onClick={()=> authMode==='login' ? login.mutate({email,password}) : register.mutate({email,password})}>
-          {authMode==='login' ? (login.isPending?'Logging in...':'Login') : (register.isPending?'Registering...':'Register')}
-        </button>
+        <div className="flex items-center gap-3">
+          <select value={authMode} onChange={e=>setAuthMode(e.target.value as any)} className="select select-bordered select-sm">
+            <option value="login">Login</option>
+            <option value="register">Register</option>
+          </select>
+          <input placeholder="email" value={email} onChange={e=>setEmail(e.target.value)} className="input input-bordered input-sm w-56" />
+          <input placeholder="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} className="input input-bordered input-sm w-40" />
+          <button className={`btn btn-sm ${authMode==='login' ? 'btn-outline' : 'btn-primary'}`} onClick={()=> authMode==='login' ? login.mutate({email,password}) : register.mutate({email,password})}>
+            {authMode==='login' ? (login.isPending?'Logging in...':'Login') : (register.isPending?'Registering...':'Register')}
+          </button>
+          {meData ? (
+            <div className="flex items-center gap-3 ml-3">
+              <div className="text-sm">{meData.email}</div>
+              <button className="btn btn-ghost btn-sm" onClick={()=>{ setToken(null); qc.invalidateQueries(); alert('logged out') }}>Logout</button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* 新建 */}
-      <div style={{display:'flex', gap:8, margin:'12px 0'}}>
-        <input placeholder="name" value={name} onChange={e=>setName(e.target.value)} />
-        <input placeholder="body" value={body} onChange={e=>setBody(e.target.value)} />
-        <button onClick={()=> create.mutate({name, body, tags:[]})} disabled={create.isPending}>
-          {create.isPending ? 'Creating...' : 'Create'}
-        </button>
+      <div className="flex gap-3 items-center mb-4">
+        <input placeholder="name" value={name} onChange={e=>setName(e.target.value)} className="input input-bordered w-72" />
+        <input placeholder="body" value={body} onChange={e=>setBody(e.target.value)} className="input input-bordered flex-1" />
+        <button className="btn btn-primary" onClick={()=> create.mutate({name, body, tags:[]})} disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create'}</button>
       </div>
 
       {/* 列表 */}
-      {isLoading ? 'loading...' : (
-        <table width="100%" cellPadding={8} style={{borderCollapse:'collapse'}}>
-          <thead>
-            <tr style={{textAlign:'left', color:'#666'}}>
-              <th style={{width: '28%'}}>Name</th>
-              <th>Body</th>
-              <th style={{width: 220}}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map(p => (
-              <tr key={p.id} style={{borderTop:'1px solid #eee'}}>
-                <td>
-                  {editingId===p.id
-                    ? <input value={editName} onChange={e=>setEditName(e.target.value)} />
-                    : <b>{p.name}</b>}
-                </td>
-                <td>
-                  {editingId===p.id
-                    ? <input value={editBody} onChange={e=>setEditBody(e.target.value)} />
-                    : <span>{p.body}</span>}
-                </td>
-                <td>
-                  {editingId===p.id ? (
-                    <>
-                      <button
-                        onClick={()=> update.mutate({ id:p.id, name:editName, body:editBody })}
-                        disabled={update.isPending}
-                        style={{marginRight:8}}
-                      >{update.isPending?'Saving...':'Save'}</button>
-                      <button onClick={()=> setEditingId(null)}>Cancel</button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={()=> { setEditingId(p.id); setEditName(p.name); setEditBody(p.body) }}
-                        style={{marginRight:8}}
-                      >Edit</button>
-                      <button
-                        onClick={()=> remove.mutate(p.id)}
-                        disabled={remove.isPending}
-                        style={{color:'#b91c1c'}}
-                      >{remove.isPending?'Deleting...':'Delete'}</button>
-                    </>
-                  )}
-                </td>
+      {isLoading ? <div className="p-4">loading...</div> : (
+        <div className="overflow-x-auto">
+          <table className="table w-full">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Body</th>
+                <th>Actions</th>
               </tr>
-            ))}
-            {list.length===0 && (
-              <tr><td colSpan={3} style={{padding:16, color:'#888'}}>No data</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {list.map(p => (
+                <tr key={p.id}>
+                  <td>
+                    {editingId===p.id
+                      ? <input value={editName} onChange={e=>setEditName(e.target.value)} className="input input-bordered" />
+                      : <b>{p.name}</b>}
+                  </td>
+                  <td>
+                    {editingId===p.id
+                      ? <input value={editBody} onChange={e=>setEditBody(e.target.value)} className="input input-bordered" />
+                      : <span>{p.body}</span>}
+                  </td>
+                  <td className="w-56">
+                    <div className="flex gap-2">
+                    {editingId===p.id ? (
+                      <>
+                        <button
+                          onClick={()=> update.mutate({ id:p.id, name:editName, body:editBody })}
+                          disabled={update.isPending}
+                          className="btn btn-sm"
+                        >{update.isPending?'Saving...':'Save'}</button>
+                        <button className="btn btn-sm btn-ghost" onClick={()=> setEditingId(null)}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={()=> { setEditingId(p.id); setEditName(p.name); setEditBody(p.body) }}
+                          className="btn btn-sm btn-outline"
+                        >Edit</button>
+                        <button
+                          onClick={()=> remove.mutate(p.id)}
+                          disabled={remove.isPending}
+                          className="btn btn-sm btn-error"
+                        >{remove.isPending?'Deleting...':'Delete'}</button>
+                      </>
+                    )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {list.length===0 && (
+                <tr><td colSpan={3} className="p-4 text-gray-500">No data</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

@@ -14,10 +14,11 @@ type Prompt struct {
 	Name      string    `json:"name" gorm:"column:name"`
 	Body      string    `json:"body" gorm:"column:body"`
 	Tags      []byte    `json:"tags" gorm:"column:tags"` // 存 JSON
+	OwnerID   string    `json:"owner_id" gorm:"column:owner_id"`
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 }
 
-func NewPrompt(name, body string, tags []string) Prompt {
+func NewPrompt(name, body string, tags []string, ownerID string) Prompt {
 	// 这里将 tags 序列化为 JSON 存入 []byte，简化演示
 	j := []byte("[]")
 	if len(tags) > 0 {
@@ -28,6 +29,7 @@ func NewPrompt(name, body string, tags []string) Prompt {
 		Name:      name,
 		Body:      body,
 		Tags:      j,
+		OwnerID:   ownerID,
 		CreatedAt: time.Now(),
 	}
 }
@@ -51,6 +53,7 @@ func GenerateID() string { return ulid.Make().String() }
 type UserRepo interface {
 	CreateUser(ctx context.Context, u User) error
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByID(ctx context.Context, id string) (User, error)
 }
 
 func HashPassword(pw string) string {

@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Use standard Tailwind utilities in components rather than DaisyUI-specific @apply here */
+body { }
+

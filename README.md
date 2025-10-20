@@ -125,3 +125,50 @@ ngrok http 5173
 ```
 
 Security note: Exposing development servers publicly can expose sensitive data. Only open ports you need, prefer SSH tunnels or temporary tunnels (ngrok), and never run production credentials in dev with public exposure.
+
+## Tailwind / DaisyUI
+
+The `studio-lite` app uses Tailwind CSS and DaisyUI for styling. Tailwind configuration lives under the `frontend` workspace and the app imports the processed CSS from `frontend/apps/studio-lite/src/index.css`.
+
+Quick notes:
+
+- Tailwind config: `frontend/tailwind.config.cjs`
+- App-level PostCSS: `frontend/apps/studio-lite/postcss.config.cjs`
+- If you encounter PostCSS/Tailwind plugin errors during dev (errors mentioning `@tailwind` or that the PostCSS plugin moved), ensure `@tailwindcss/postcss` and `autoprefixer` are installed in the `frontend` workspace and restart Vite.
+
+Install dev dependencies (from repo root):
+
+```bash
+cd frontend
+npm install -D tailwindcss @tailwindcss/postcss postcss autoprefixer daisyui
+```
+
+The app imports `frontend/apps/studio-lite/src/index.css` which contains Tailwind directives like `@tailwind base; @tailwind components; @tailwind utilities;`. Vite in dev mode injects processed CSS into the page. If you use DaisyUI-specific `@apply` rules and see unknown utility class errors, prefer using the DaisyUI class names directly on elements to avoid PostCSS resolution issues.
+
+## Database migrations
+
+SQL migration files are in the `migrations/` folder. To apply the migrations that create the `users` table and add the `owner_id` column to `prompts`, run (adjust host/credentials to your environment):
+
+```bash
+# example applying migrations using local MySQL over TCP
+mysql -h 127.0.0.1 -P 3306 -u coze -pcoze_pass coze < migrations/20251020_create_users.sql
+mysql -h 127.0.0.1 -P 3306 -u coze -pcoze_pass coze < migrations/20251021_add_owner_to_prompts.sql
+```
+
+If you see socket-related connection errors, add `-h 127.0.0.1` to force TCP. If your DB runs in Docker, ensure the container exposes the port and the DSN in `backend/config.yaml` matches the host/port.
+
+## Test user & auth
+
+You can create a test user and obtain a JWT token with the following curl commands (backend must be running on port 8099):
+
+```bash
+# register a new user
+curl -X POST http://127.0.0.1:8099/api/register -H 'Content-Type: application/json' -d '{"email":"bob@happyshare.io","password":"pass"}'
+
+# login and get token
+curl -X POST http://127.0.0.1:8099/api/login -H 'Content-Type: application/json' -d '{"email":"bob@happyshare.io","password":"pass"}'
+```
+
+The login endpoint returns a JSON payload with a token value in `data.token`. The frontend stores the token in `localStorage` (key `auth.token`) and axios attaches it as an Authorization header for protected endpoints.
+
+If you want me to commit this README change and push it to the remote repository, tell me which branch to push to (default: `main`) and I'll run the git commit + push for you.

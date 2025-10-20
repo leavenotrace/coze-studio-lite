@@ -26,8 +26,8 @@ func (s *PromptService) List(ctx context.Context) ([]domain.Prompt, error) {
 	return s.repo.List(ctx)
 }
 
-func (s *PromptService) Create(ctx context.Context, name, body string, tags []string) (domain.Prompt, error) {
-	p := domain.NewPrompt(name, body, tags)
+func (s *PromptService) Create(ctx context.Context, name, body string, tags []string, ownerID string) (domain.Prompt, error) {
+	p := domain.NewPrompt(name, body, tags, ownerID)
 	if err := s.repo.Save(ctx, p); err != nil {
 		return domain.Prompt{}, err
 	}
@@ -68,4 +68,8 @@ func (s *UserService) Login(ctx context.Context, email, password string) (domain
 	if err != nil { return domain.User{}, err }
 	if !domain.CheckPassword(password, u.PasswordHash) { return domain.User{}, domain.ErrUnauthenticated }
 	return u, nil
+}
+
+func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, error) {
+	return s.repo.GetUserByID(ctx, id)
 }
