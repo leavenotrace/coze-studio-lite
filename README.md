@@ -94,3 +94,34 @@ PID/log file locations (repo root):
 If you see unexpected 404s or requests not reaching the backend, check:
 - which process is listening on 5173: `ss -ltnp | grep 5173`
 - whether the running Vite instance is started from `frontend/apps/studio-lite` (it should be) or from `frontend/` root (which can cause routing/proxy issues).
+
+## Exposing to the public internet
+
+If you need to access the dev server from a public IP (for testing on devices or remote access), you have two main options:
+
+1) Bind services to 0.0.0.0 and open firewall/NAT
+
+- Use the Makefile helper which binds Vite to `0.0.0.0:5173` and the backend to the configured `API_PORT`:
+
+```bash
+make dev-public
+```
+
+- Ensure your host firewall (ufw/iptables) or cloud security group allows inbound traffic to the chosen ports (5173, 8099).
+
+2) Use an SSH tunnel or ngrok (recommended for short-lived testing)
+
+- SSH local port forwarding (from your laptop):
+
+```bash
+# forward remote port 5173 to local 5173
+ssh -L 5173:localhost:5173 user@your-remote-host
+```
+
+- Or use ngrok to expose a local port securely:
+
+```bash
+ngrok http 5173
+```
+
+Security note: Exposing development servers publicly can expose sensitive data. Only open ports you need, prefer SSH tunnels or temporary tunnels (ngrok), and never run production credentials in dev with public exposure.

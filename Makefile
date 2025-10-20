@@ -40,6 +40,17 @@ dev-stop:
 	@[ -f $(CURDIR)/vite.pid ] && kill $$(cat $(CURDIR)/vite.pid) && rm -f $(CURDIR)/vite.pid && echo "killed vite" || echo "no vite.pid"
 	@echo "done"
 
+# Start services bound to 0.0.0.0 on fixed ports so they are reachable from other hosts
+# Note: You still need to open firewall/security-group rules and/or NAT port-forwarding.
+dev-public:
+	@echo "Starting backend (0.0.0.0:${API_PORT}) and frontend (0.0.0.0:5173) for public access..."
+	@cd backend && API_PORT=$(API_PORT) MYSQL_DSN="$(MYSQL_DSN)" nohup go run ./ > ../backend.log 2>&1 & echo $$! > ../backend.pid
+	@sleep 1
+	@sh -c 'cd frontend/apps/studio-lite && nohup npx vite --host 0.0.0.0 --port 5173 > $(CURDIR)/vite.log 2>&1 & echo $$! > $(CURDIR)/vite.pid'
+	@sleep 1
+	@echo "backend pid: $$(cat $(CURDIR)/backend.pid || echo none)"
+	@echo "vite pid: $$(cat $(CURDIR)/vite.pid || echo none)"
+
 # 单元测试
 test:
 	cd backend && go test ./...
