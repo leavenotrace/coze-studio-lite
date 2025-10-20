@@ -30,7 +30,12 @@ func NewPrompt(name, body string, tags []string) Prompt {
 	}
 }
 
+
 type PromptRepo interface {
 	List(ctx context.Context) ([]Prompt, error)
 	Save(ctx context.Context, p Prompt) error
+	// 新增：
+	Get(ctx context.Context, id string) (Prompt, error)
+	Update(ctx context.Context, p Prompt) error
+	Delete(ctx context.Context, id string) error
 }

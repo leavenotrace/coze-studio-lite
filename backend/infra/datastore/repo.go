@@ -29,3 +29,21 @@ func (r *Repo) List(ctx context.Context) ([]domain.Prompt, error) {
 func (r *Repo) Save(ctx context.Context, p domain.Prompt) error {
 	return r.db.WithContext(ctx).Table("prompts").Create(&p).Error
 }
+
+func (r *Repo) Get(ctx context.Context, id string) (domain.Prompt, error) {
+	var p domain.Prompt
+	if err := r.db.WithContext(ctx).Table("prompts").Where("id=?", id).First(&p).Error; err != nil {
+		return domain.Prompt{}, err
+	}
+	return p, nil
+}
+
+func (r *Repo) Update(ctx context.Context, p domain.Prompt) error {
+	return r.db.WithContext(ctx).Table("prompts").Where("id=?", p.ID).Updates(map[string]any{
+		"name": p.Name, "body": p.Body, "tags": p.Tags,
+	}).Error
+}
+
+func (r *Repo) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Table("prompts").Where("id=?", id).Delete(&domain.Prompt{}).Error
+}

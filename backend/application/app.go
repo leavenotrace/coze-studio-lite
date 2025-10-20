@@ -31,3 +31,21 @@ func (s *PromptService) Create(ctx context.Context, name, body string, tags []st
 	}
 	return p, nil
 }
+
+
+// 新增：更新
+func (s *PromptService) Update(ctx context.Context, id, name, body string, tags []string) (domain.Prompt, error) {
+	p, err := s.repo.Get(ctx, id)
+	if err != nil { return domain.Prompt{}, err }
+	p.Name = name
+	p.Body = body
+	// 最简：只存首个标签
+	if len(tags) > 0 { p.Tags = []byte(`["` + tags[0] + `"]`) } else { p.Tags = []byte("[]") }
+	if err := s.repo.Update(ctx, p); err != nil { return domain.Prompt{}, err }
+	return p, nil
+}
+
+// 新增：删除
+func (s *PromptService) Delete(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id)
+}

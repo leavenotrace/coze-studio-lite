@@ -55,6 +55,36 @@ func Run() error {
 		ctx.JSON(http.StatusOK, H{"code": 0, "data": p})
 	})
 
+		// 新增：PUT /api/prompts/:id
+		r.PUT("/prompts/:id", func(c context.Context, ctx *app.RequestContext) {
+			id := string(ctx.Param("id"))
+			var in struct {
+				Name string   `json:"name"`
+				Body string   `json:"body"`
+				Tags []string `json:"tags"`
+			}
+			if err := ctx.Bind(&in); err != nil {
+				ctx.JSON(http.StatusBadRequest, H{"code": 400, "msg": "bad request"})
+				return
+			}
+			p, err := appsvc.Prompts.Update(c, id, in.Name, in.Body, in.Tags)
+			if err != nil {
+				ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
+				return
+			}
+			ctx.JSON(http.StatusOK, H{"code": 0, "data": p})
+		})
+
+		// 新增：DELETE /api/prompts/:id
+		r.DELETE("/prompts/:id", func(c context.Context, ctx *app.RequestContext) {
+			id := string(ctx.Param("id"))
+			if err := appsvc.Prompts.Delete(c, id); err != nil {
+				ctx.JSON(http.StatusInternalServerError, H{"code": 500, "msg": err.Error()})
+				return
+			}
+			ctx.JSON(http.StatusOK, H{"code": 0, "data": true})
+		})
+
 	return h.Run()
 }
 
