@@ -9,6 +9,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 
 	"github.com/coze-dev/coze-studio/backend/application"
+    "github.com/coze-dev/coze-studio/backend/pkg/auth"
 )
 
 type H = map[string]any
@@ -53,6 +54,35 @@ func Run() error {
 			return
 		}
 		ctx.JSON(http.StatusOK, H{"code": 0, "data": p})
+	})
+
+	// Auth: register
+	r.POST("/register", func(c context.Context, ctx *app.RequestContext) {
+		var in struct{
+			Email string `json:"email"`
+			Password string `json:"password"`
+		}
+ 		if err := ctx.Bind(&in); err != nil {
+ 			ctx.JSON(http.StatusBadRequest, H{"code":400, "msg":"bad request"}); return
+ 		}
+ 		u, err := appsvc.Users.Register(c, in.Email, in.Password)
+ 		if err != nil { ctx.JSON(http.StatusInternalServerError, H{"code":500, "msg":err.Error()}); return }
+ 		ctx.JSON(http.StatusOK, H{"code":0, "data":u})
+ 	})
+
+	// Auth: login
+	r.POST("/login", func(c context.Context, ctx *app.RequestContext) {
+		var in struct{
+			Email string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := ctx.Bind(&in); err != nil { ctx.JSON(http.StatusBadRequest, H{"code":400, "msg":"bad request"}); return }
+		u, err := appsvc.Users.Login(c, in.Email, in.Password)
+		if err != nil { ctx.JSON(http.StatusUnauthorized, H{"code":401, "msg":err.Error()}); return }
+		// issue JWT
+		tok, terr := auth.GenerateToken(u.ID)
+		if terr != nil { ctx.JSON(http.StatusInternalServerError, H{"code":500, "msg":terr.Error()}); return }
+		ctx.JSON(http.StatusOK, H{"code":0, "data": map[string]any{"user": u, "token": tok}})
 	})
 
 		// 新增：PUT /api/prompts/:id

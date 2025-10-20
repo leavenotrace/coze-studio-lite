@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { http } from '../api/http'
+import { http, setToken } from '../api/http'
 
 type Prompt = { id: string; name: string; body: string }
 
@@ -9,6 +9,19 @@ export default function Prompts(){
   const { data, isLoading } = useQuery({
     queryKey: ['prompts'],
     queryFn: async ()=> (await http.get('/api/prompts')).data.data as Prompt[]
+  })
+
+  // Auth
+  const [authMode, setAuthMode] = useState<'login'|'register'>('login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const register = useMutation({
+    mutationFn: async (p:{email:string; password:string}) => (await http.post('/api/register', p)).data,
+    onSuccess: ()=> alert('registered')
+  })
+  const login = useMutation({
+    mutationFn: async (p:{email:string; password:string}) => (await http.post('/api/login', p)).data,
+    onSuccess: (d:any)=> { setToken(d.data.token); alert('logged in') }
   })
 
   // Create
@@ -44,6 +57,19 @@ export default function Prompts(){
     <div style={{maxWidth: 880, margin: '40px auto', fontFamily:'system-ui'}}>
       <h2 style={{marginBottom:8}}>Prompts</h2>
 
+      {/* Auth */}
+      <div style={{display:'flex', gap:8, margin:'12px 0', alignItems:'center'}}>
+        <select value={authMode} onChange={e=>setAuthMode(e.target.value as any)}>
+          <option value="login">Login</option>
+          <option value="register">Register</option>
+        </select>
+        <input placeholder="email" value={email} onChange={e=>setEmail(e.target.value)} />
+        <input placeholder="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
+        <button onClick={()=> authMode==='login' ? login.mutate({email,password}) : register.mutate({email,password})}>
+          {authMode==='login' ? (login.isPending?'Logging in...':'Login') : (register.isPending?'Registering...':'Register')}
+        </button>
+      </div>
+
       {/* 新建 */}
       <div style={{display:'flex', gap:8, margin:'12px 0'}}>
         <input placeholder="name" value={name} onChange={e=>setName(e.target.value)} />
@@ -58,9 +84,9 @@ export default function Prompts(){
         <table width="100%" cellPadding={8} style={{borderCollapse:'collapse'}}>
           <thead>
             <tr style={{textAlign:'left', color:'#666'}}>
-              <th width="28%">Name</th>
+              <th style={{width: '28%'}}>Name</th>
               <th>Body</th>
-              <th width="220">Actions</th>
+              <th style={{width: 220}}>Actions</th>
             </tr>
           </thead>
           <tbody>

@@ -9,12 +9,14 @@ import (
 
 type Services struct {
 	Prompts *PromptService
+	Users   *UserService
 }
 
 func New(mysqlDSN string) *Services {
 	repo := datastore.NewRepo(mysqlDSN)
 	return &Services{
 		Prompts: &PromptService{repo: repo},
+		Users:   &UserService{repo: repo},
 	}
 }
 
@@ -48,4 +50,22 @@ func (s *PromptService) Update(ctx context.Context, id, name, body string, tags 
 // 新增：删除
 func (s *PromptService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// --- UserService ---
+type UserService struct{ repo domain.UserRepo }
+
+func (s *UserService) Register(ctx context.Context, email, password string) (domain.User, error) {
+	// minimal: hash password and save
+	h := domain.HashPassword(password)
+	u := domain.User{ID: domain.GenerateID(), Email: email, PasswordHash: h}
+	if err := s.repo.CreateUser(ctx, u); err != nil { return domain.User{}, err }
+	return u, nil
+}
+
+func (s *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
+	u, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil { return domain.User{}, err }
+	if !domain.CheckPassword(password, u.PasswordHash) { return domain.User{}, domain.ErrUnauthenticated }
+	return u, nil
 }

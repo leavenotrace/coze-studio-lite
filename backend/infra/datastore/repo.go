@@ -47,3 +47,16 @@ func (r *Repo) Update(ctx context.Context, p domain.Prompt) error {
 func (r *Repo) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Table("prompts").Where("id=?", id).Delete(&domain.Prompt{}).Error
 }
+
+// --- user methods ---
+func (r *Repo) CreateUser(ctx context.Context, u domain.User) error {
+	return r.db.WithContext(ctx).Table("users").Create(&u).Error
+}
+
+func (r *Repo) GetUserByEmail(ctx context.Context, email string) (domain.User, error) {
+	var u domain.User
+	if err := r.db.WithContext(ctx).Table("users").Where("email=?", email).First(&u).Error; err != nil {
+		return domain.User{}, err
+	}
+	return u, nil
+}

@@ -3,8 +3,10 @@ package domain
 import (
 	"context"
 	"time"
+	"errors"
 
 	"github.com/oklog/ulid/v2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Prompt struct {
@@ -38,4 +40,24 @@ type PromptRepo interface {
 	Get(ctx context.Context, id string) (Prompt, error)
 	Update(ctx context.Context, p Prompt) error
 	Delete(ctx context.Context, id string) error
+}
+
+// --- user domain interfaces & helpers ---
+
+var ErrUnauthenticated = errors.New("unauthenticated")
+
+func GenerateID() string { return ulid.Make().String() }
+
+type UserRepo interface {
+	CreateUser(ctx context.Context, u User) error
+	GetUserByEmail(ctx context.Context, email string) (User, error)
+}
+
+func HashPassword(pw string) string {
+	h, _ := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	return string(h)
+}
+
+func CheckPassword(pw, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pw)) == nil
 }
